@@ -1818,20 +1818,42 @@ class PasteUpModel {
         if (create) {
             // nov 2020: for now, the set of app buttons is fixed.
             let appDefs = {
-                link: {
-                    label: "web page", iconName: "link.svgIcon",
-                    urlTemplate: "../cobrowser-single/?q=${q}", order: 10,
-                    noURLEdit: true,
-                    noSandbox: true,
-                    pressHold: {
-                        appName: "link:secondary", label: "custom app", iconName: "link.svgIcon",
-                        urlTemplate: null, order: 1
-                    }
-                },
+                // link: {
+                //     label: "web page", iconName: "link.svgIcon",
+                //     urlTemplate: "../cobrowser-single/?q=${q}", order: 10,
+                //     noURLEdit: true,
+                //     noSandbox: true,
+                //     pressHold: {
+                //         appName: "link:secondary", label: "custom app", iconName: "link.svgIcon",
+                //         urlTemplate: null, order: 1
+                //     }
+                // },
                 // googleworkspace: {
                 //     iconName: "googleworkspace.svgIcon",
                 //     viewBox: [376, 177], urlTemplate: null, order: 15,
                 // },
+                poker: {
+                    label: "Ugly Poker", iconName: "link.svgIcon",
+                    urlTemplate: "https://p3anoman.github.io/poker/?q=${q}", order: 70,
+                    noURLEdit: true,
+                    noSandbox: true,
+                },
+                chalculator: {
+                    label: "Chalculator", iconName: "link.svgIcon",
+                    urlTemplate: "https://p3anoman.github.io/chalculator/?q=${q}", order: 50,
+                    noURLEdit: true,
+                    noSandbox: true,
+                },
+                cubes: {
+                    label: "Cubes", iconName: "link.svgIcon",
+                    urlTemplate: "https://p3anoman.github.io/cellblock/?q=${q}", order: 60,
+                    noURLEdit: true,
+                    noSandbox: true,
+                    // pressHold: {
+                    //     appName: "link:secondary", label: "custom app", iconName: "link.svgIcon",
+                    //     urlTemplate: null, order: 1
+                    // }
+                },
                 docview: {
                     label: "document", iconName: "pdf.svgIcon",
                     urlTemplate: "../docview/?q=${q}", order: 20
@@ -1844,17 +1866,9 @@ class PasteUpModel {
                     label: "notes", iconName: "text-fields.svgIcon",
                     urlTemplate: "../text/apps/?q=${q}", order: 40
                 },
-                whiteboard: {
-                    label: "whiteboard", iconName: "whiteboard.svgIcon",
-                    urlTemplate: "../whiteboard/?q=${q}", order: 50
-                },
-                sharescreen: {
-                    label: "share screen", iconName: "share-screen.svgIcon",
-                    urlTemplate: "../share-screen/?q=${q}", order: 60
-                },
                 youtube: {
                     label: "youtube", iconName: "youtube.svgIcon",
-                    urlTemplate: "../youtube/?q=${q}", order: 70
+                    urlTemplate: "../youtube/?q=${q}", order: 80
                 },
             };
             this._set("sessionApps", appDefs);
@@ -3827,40 +3841,41 @@ class VideoChatView {
         let iframe = this.dom.querySelector("#videoChatFrame");
         if (!iframe) {
             iframe = document.createElement("iframe");
-            iframe.allow = "camera; microphone";
+            iframe.allow = "autoplay;camera;microphone;fullscreen;picture-in-picture;display-capture;midi;geolocation;";
             iframe.id = "videoChatFrame";
+            iframe.src="https://vdo.ninja/?room=croquet_"+window.location.search["q"]+"&transparent";
             iframe.classList.add("docked-iframe");
+            iframe.attributeStyleMap.set('flex','auto');
             this.dom.appendChild(iframe);
         }
 
         // @@@@@@@@@ development support
-        let localVideo = /localVideo/.exec(window.location.href);
-        if (localVideo) {
-            let chatUrl = "tmpVideoChat/index.html";
-            if (/toxiproxy/.exec(window.location.href)) chatUrl += '?toxiproxy=true';
-            iframe.src = chatUrl;
-        } else {
-            iframe.src = this.url("../video-chat");
-        }
-        console.log("video app location: " + iframe.src);
-
-        window.topView.requestInitialization(this, "VideoChatView", "setup");
+        // let localVideo = /localVideo/.exec(window.location.href);
+        // if (localVideo) {
+        //     let chatUrl = "tmpVideoChat/index.html";
+        //     if (/toxiproxy/.exec(window.location.href)) chatUrl += '?toxiproxy=true';
+        //     iframe.src = chatUrl;
+        // } else {
+        //     iframe.src = this.url("../video-chat");
+        // }
+        // console.log("video app location: " + iframe.src);
+        //
+        // window.topView.requestInitialization(this, "VideoChatView", "setup");
     }
 
     setup() {
-        if (!window.fromLandingPage) {return;}
-        let chat = window.fromLandingPage.chat;
-
+        // if (!window.fromLandingPage) {return;}
+        // let chat = window.fromLandingPage.chat;
+        //
         this.scaler = window.topView.querySelector("#scaler");
 
         this.dom.style.setProperty("width", "100%");
-
-        if (chat === "videoOnly") {
+        //
+        // if (chat === "videoOnly") {
             this.dom.style.setProperty("height", "100%");
-        } else {
-            this.dom.style.setProperty("height", "60%");
-        }
-
+        // } else {
+        //     this.dom.style.setProperty("height", "60%");
+        // }
         this.scaler.call("PasteUpView", "addToDock", this.dom);
     }
 
@@ -4115,6 +4130,11 @@ class ToolsTabView {
             tools.dom.setAttribute("hiddenState", `${this.isHidden}`);
             let pad = window.topView.querySelector("#pad");
             pad.call("TransformView", "resetToolState");
+        }
+
+        let tab = window.topView.querySelector("#toolsTab");
+        if (tab) {
+            tab.dom.setAttribute("hiddenState", false);
         }
 
         let icon = this.dom.querySelector("#icon");

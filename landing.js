@@ -2,19 +2,7 @@
 
 let elements = {};
 
-let audioFeedback = null;
-let audioSelection = {
-    prev: {deviceId: undefined, label: undefined},
-    current: {deviceId: undefined, label: undefined}
-};  // begins with undefined for deviceId
-
-let videoSelection = {
-    prev: {deviceId: undefined, label: undefined},
-    current: {deviceId: undefined, label: undefined}
-};  // begins with undefined for deviceId
-let audioHistory = [];
 let userColor = randomColor();
-let lastDevices = [];
 
 let joinButtonPressed = false;
 
@@ -23,9 +11,9 @@ let createdRandomName;
 
 export function load() {
     [
-        "panel", "nickname", "title", "mic", "video", "welcome",
-        "settings", "settingsMenu", "videoList", "audioList", "videoPreview", "audioPreview",
-        "joinButton", "required", "initials", "browserCheck", "streamErrorMessage",
+        "panel", "nickname", "title", "welcome",//, "mic", "video"
+        "settings", "settingsMenu", //"videoList", "audioList", "videoPreview", "audioPreview",
+        "joinButton", "required", "initials", "browserCheck", //"streamErrorMessage",
         "defaultWalletname", "walletname"
     ].forEach((n) => {
         let element = document.querySelector("#" + n);
@@ -37,7 +25,6 @@ export function load() {
         elements.walletname.addEventListener(e, updateWallet);
     });
 
-    initButtons();
     initHash();
     checkLocalStorage();
     setNick();
@@ -47,13 +34,6 @@ export function load() {
     updateWallet();
 
     setResizer();
-
-    initList();
-    testInitMedia().then((flag) => {
-        if (flag) {
-            initMedia();
-        }
-    });
 }
 
 function greenlightLoader(dirPath) {
@@ -92,20 +72,6 @@ function findGreenlight() {
     });
 }
 
-function initButtons() {
-    ["mic", "video", "settings"].forEach((n) => {
-        let element = elements[n];
-
-        if (n !== "settings") {
-            element.onclick = click;
-            setButtonState(element, "gray", true);
-        } else {
-            element.onclick = settingsClick;
-            setButtonState(element, "off");
-        }
-    });
-}
-
 function initHash() {
     Croquet.App.autoSession("q").then((sessionName) => {
         elements.title.textContent = sessionName;
@@ -120,6 +86,7 @@ function checkLocalStorage() {
             value = JSON.parse(value);
             if (value.version !== "2") {return;}
             userInfo = value;
+            console.log(userInfo);
         } catch (e) {
             console.log("error in reading from localStorage");
         }
@@ -163,6 +130,8 @@ function updateNick(evt) {
         nickname.textContent = text.join("");
 
         if (nickname.textContent.length !== 0) {
+          console.log("nick changed");
+          userInfo.nickname = nickname.textContent;
             join();
             return;
         }
@@ -202,261 +171,6 @@ function initialsFrom(nickname) {
     return name.toUpperCase();
 }
 
-function testInitMedia() {
-    navigator.mediaDevices.ondevicechange = reenumerateDevices;
-    return navigator.mediaDevices.getUserMedia({
-        video: {
-            frameRate : 12,
-            aspectRatio: 1.33,
-            width: 240,
-            height: 240 / 1.33,
-            resizeMode: "crop-and-scale",
-        },
-        audio: true
-    }).then((stream) => {
-        console.log("stream test succeeeded");
-        stream.getTracks().forEach(t => t.stop());
-        return true;
-    }).catch((err) => {
-        console.log("The following error occurred: " + err.name);
-        setInput("video", null, false);
-        setButtonState(elements.video, "off", true);
-        setInput("audio", null, false);
-        setButtonState(elements.mic, "off", true);
-        updateNick();
-        showStreramErrorMessage();
-        return false;
-    });
-}
-
-function initMedia(optType) {
-    if (!navigator.mediaDevices.getUserMedia) return;
-    if (joinButtonPressed) return;
-    let videoPreview = elements.videoPreview;
-    enumerateDevices().then(() => {
-        if (!optType || optType === "video") {
-            if (videoSelection.current.deviceId) {
-                navigator.mediaDevices.getUserMedia({
-                    video: {
-                        deviceId: videoSelection.current.deviceId,
-                        frameRate : 12,
-                        aspectRatio: 1.33,
-                        width: 240,
-                        height: 240 / 1.33,
-                        resizeMode: "crop-and-scale",
-                    },
-                    audio: false
-                }).then((stream) => {
-                    stopVideoPreview();
-                    if (joinButtonPressed) {
-                        stream.getTracks().forEach(t => t.stop());
-                        return true;
-                    }
-                    videoPreview.srcObject = stream;
-                    videoPreview.onloadedmetadata = () => {
-                        videoPreview.play();
-                        updateNick();
-                        setButtonState(elements.video, "on", true);
-                    };
-                    return false;
-                }).catch((err) => {
-                    console.log("The following error occurred: " + err.name);
-                    setInput("video", null, false);
-                    setButtonState(elements.video, "off", true);
-                    return false;
-                });
-            } else {
-                stopVideoPreview();
-                setButtonState(elements.video, "off", true);
-            }
-        }
-
-        if (!optType || optType === "audio") {
-            if (audioSelection.current.deviceId) {
-                navigator.mediaDevices.getUserMedia({
-                    audio: {
-                        deviceId: audioSelection.current.deviceId,
-                    }
-                }).then((stream) => {
-                    stopAudioFeedback();
-                    if (joinButtonPressed) {
-                        stream.getTracks().forEach(t => t.stop());
-                        return true;
-                    }
-                    setupAudioFeedback(stream);
-                    setButtonState(elements.mic, "on", true);
-                    return false;
-                }).catch((err) => {
-                    console.log("The following error occurred: " + err.name);
-                    setInput("audio", null, false);
-                    setButtonState(elements.mic, "off", true);
-                });
-            } else {
-                stopAudioFeedback();
-                setButtonState(elements.mic, "off", true);
-            }
-        }
-    });
-}
-
-function stopVideoPreview() {
-    let videoPreview = elements.videoPreview;
-    if (videoPreview.srcObject) {
-        videoPreview.srcObject.getTracks().forEach(t => t.stop());
-    }
-    videoPreview.srcObject = null;
-    videoPreview.onloadedmetadata = null;
-    videoPreview.pause();
-}
-
-function initList() {
-    elements.audioList.addEventListener("input", (evt) => {
-        let index = lookupDeviceInfoIndex(evt.target.value);
-        let info = lastDevices[index];
-        setInput("audio", info);
-        closeSettingsMenu();
-    });
-    elements.videoList.addEventListener("input", (evt) => {
-        let index = lookupDeviceInfoIndex(evt.target.value);
-        let info = lastDevices[index];
-        setInput("video", info);
-        closeSettingsMenu();
-    });
-}
-
-function lookupDeviceInfoIndex(deviceId) {
-    return lastDevices.findIndex((info) => info.deviceId === deviceId);
-}
-
-function setInput(type, info, doActivate) {
-    let obj;
-    if (type === "video") {
-        obj = videoSelection;
-    } else if (type === "audio") {
-        obj = audioSelection;
-    }
-
-    if (obj) {
-        let changed = false;
-        let infoDeviceId = info && info.deviceId;
-        let veryFirstTime = obj.current.deviceId === undefined;
-        if (!obj.current.deviceId && !doActivate) {
-            if (infoDeviceId) {
-                obj.prev = {deviceId: info.deviceId, label: info.label};
-            }
-        } else {
-            obj.prev = {deviceId: obj.current.deviceId, label: obj.current.label};
-            if (infoDeviceId) {
-                obj.current = {deviceId: info.deviceId, label: info.label};
-            } else {
-                // undefined  is used to denote that we still have not determined
-                // even the default device. It happens here when one of camera or mic
-                // is blocked so testInitMedia() fails altogether but still
-                // clicking on the non-blocked device icon should be possible.
-                let val = veryFirstTime ?  undefined : null;
-                obj.current = {deviceId: val, label: val};
-            }
-            changed = true;
-        }
-        if (changed) {
-            initMedia(type);
-        }
-    }
-}
-
-function setupAudioFeedback(stream) {
-    if (stream.getAudioTracks().length === 0) {
-        console.log("video only stream, perhaps for screen share");
-        return;
-    }
-
-    let process = (data) => {
-        if (!audioFeedback) {
-            // already closed;
-            return -1;
-        }
-
-        let oldTime = audioFeedback.time;
-        let nowTime = Date.now();
-        if (nowTime < oldTime + 100) {return -1;}
-        audioFeedback.time = nowTime;
-        let max = 0;
-        let buf = data.inputBuffer.getChannelData(0);
-        for (let i = 0; i < buf.length; i++) {
-            max = Math.max(max, Math.abs(buf[i]));
-        }
-        max = Math.max((max * 10 - 0.5), 0); // hmm
-        return max;
-    };
-
-    let context = new (window.AudioContext || window.webkitAudioContext)();
-    let cloned = null; //stream.clone();
-    let input = context.createMediaStreamSource(stream); // cloned
-    let processor = context.createScriptProcessor(1024, 1, 1);
-    processor.onaudioprocess = (e) => {
-        let v = process(e);
-        if (v >= 0) {
-            renderAudioFeedback(v);
-        }
-    };
-
-    input.connect(processor);
-    processor.connect(context.destination);
-
-    audioFeedback = {stream, context, input, cloned, processor, time: 0};
-}
-
-function renderAudioFeedback(v) {
-    audioHistory.push(v);
-    if (audioHistory.length > 8) {
-        audioHistory.shift();
-    }
-
-    let ctx = elements.audioPreview.getContext('2d');
-    let width = elements.audioPreview.width;
-    let totalHeight = elements.audioPreview.height;
-    ctx.clearRect(0, 0, width, totalHeight);
-    let step = 6;
-    let middleStart = width / 2 - step;
-    ctx.fillStyle = "#8c6ce8";
-    audioHistory.forEach((vol, i) => {
-        let ind = 7 - i;
-        let height = Math.min(vol * 20, 30);
-        let top = (totalHeight - height) / 2;
-        ctx.fillRect(middleStart + (ind * step), top, step, height);
-        if (i !== 0) {
-            ctx.fillRect(middleStart - (ind * step), top, step, height);
-        }
-    });
-}
-
-function stopAudioFeedback() {
-    let audio = audioFeedback;
-    if (!audio) {return;}
-    if (audio.input) {
-        audio.input.disconnect();
-    }
-    if (audio.processor) {
-        audio.processor.disconnect();
-    }
-    if (audio.context) {
-        audio.context.close();
-    }
-    if (audio.cloned) {
-        audio.cloned.getTracks().forEach(track => track.stop());
-    }
-
-    if (audio.stream) {
-        audio.stream.getTracks().forEach(track => track.stop());
-    }
-    let ctx = elements.audioPreview.getContext('2d');
-    let width = elements.audioPreview.width;
-    let totalHeight = elements.audioPreview.height;
-    ctx.clearRect(0, 0, width, totalHeight);
-
-    audioFeedback = null;
-}
-
 function resizer() {
     if (window.innerWidth >= 512 && window.innerHeight >= 720) {
         elements.panel.style.removeProperty("transform");
@@ -472,104 +186,6 @@ function resizer() {
 function setResizer() {
     window.addEventListener("resize", resizer);
     resizer();
-}
-
-function click(evt) {
-    let button = evt.target;
-    let state = button.getAttribute("state");
-    let newState = state === "on" ? "off" : "on";
-    setButtonState(button, newState, true);
-    let doActivate = newState === "on";
-    if (button.id === "mic") {
-        setInput("audio", doActivate ? audioSelection.prev : null, doActivate);
-    }
-    if (button.id === "video") {
-        setInput("video", doActivate ? videoSelection.prev : null, doActivate);
-    }
-}
-
-function settingsClick() {
-    let settingsOpened = elements.settingsMenu.getAttribute("state") === "shown";
-    if (settingsOpened) {
-        closeSettingsMenu();
-    } else {
-        openSettingsMenu();
-    }
-}
-
-function enumerateDevices() {
-    return new Promise((resolve) => {
-        navigator.mediaDevices.enumerateDevices().then((ary) => {
-            lastDevices = ary;
-            let audio = [];
-            let video = [];
-            ary.forEach((device) => {
-                let {deviceId, kind, label} = device;
-                if (deviceId === "default") {
-                    // console.log(`rejecting "default" device (${label})`);
-                    return;
-                }
-                let list;
-                let info;
-                if (kind === "videoinput") {
-                    list = video;
-                    info = videoSelection;
-                } else if (kind === "audioinput") {
-                    list = audio;
-                    info = audioSelection;
-                }
-                if (!info) {return;}
-                if (info.current.deviceId === undefined) {
-                    // really for the very first time
-                    info.current = {deviceId, label};
-                }
-                let selected = false;
-                if (info.current.deviceId) {
-                    selected = info.current.deviceId === deviceId;
-                } else if (info.prev.deviceId) {
-                    selected = info.prev.deviceId === deviceId;
-                }
-                list.push({deviceId, selected, label});
-            });
-            resolve({video, audio});
-        });
-    });
-}
-
-function reenumerateDevices() {
-    let isOpened = elements.settingsMenu.getAttribute("state") === "shown";
-    if (isOpened) {
-        openSettingsMenu();
-    }
-}
-
-function openSettingsMenu() {
-    elements.settingsMenu.setAttribute("state", "shown");
-
-    let rect = elements.settings.getBoundingClientRect();
-    let sRect = elements.settingsMenu.getBoundingClientRect();
-    elements.settingsMenu.style.setProperty("left", (rect.right - sRect.width - 20) + "px");
-    elements.settingsMenu.style.setProperty("top", (rect.y + 44) + "px");
-
-    enumerateDevices().then((info) => {
-        setList(info.audio, elements.audioList);
-        setList(info.video, elements.videoList);
-    });
-}
-
-function setList(list, elem) {
-    while (elem.lastChild) {
-        elem.lastChild.remove();
-    }
-    list.forEach((device) => {
-        let {deviceId, selected, label} = device;
-        let option = new Option(label, deviceId, selected, selected);
-        elem.appendChild(option);
-    });
-}
-
-function closeSettingsMenu() {
-    elements.settingsMenu.removeAttribute("state");
 }
 
 function setButtonState(button, state, isLarge) {
@@ -593,23 +209,17 @@ function setState(button, state) {
     button.setAttribute("state", state);
 }
 
-function showStreramErrorMessage() {
-    elements.streamErrorMessage.style.setProperty("visibility", "inherit");
-}
+// function showStreramErrorMessage() {
+//     elements.streamErrorMessage.style.setProperty("visibility", "inherit");
+// }
 
 function join() {
     joinButtonPressed = true;
     console.log(
         "pressed",
-        elements.mic.getAttribute("state"),
-        elements.video.getAttribute("state"),
         elements.nickname.textContent,
         elements.initials.textContent,
         elements.walletname.textContent || "public");
-
-    stopVideoPreview();
-    stopAudioFeedback();
-    closeSettingsMenu();
 
     ["#landing-svg", "#landing-background", "#landing-style"].forEach(n => {
         let elem = document.querySelector(n);
@@ -625,23 +235,10 @@ function join() {
 
     let nickname = elements.nickname.textContent;
     let walletname = elements.walletname.textContent || "public";
-    let mic = elements.mic.getAttribute("state");
-    let video = elements.video.getAttribute("state");
     let initials = elements.initials.textContent;
     let sessionName = elements.title.textContent;
-    let cameraDeviceId = videoSelection.current.deviceId;
-    let cameraDeviceLabel = videoSelection.current.label;
-    let cameraDeviceIndex = lookupDeviceInfoIndex(videoSelection.current.deviceId);
-
-    let micDeviceId = audioSelection.current.deviceId;
-    let micDeviceLabel = audioSelection.current.label;
-    let micDeviceIndex = lookupDeviceInfoIndex(audioSelection.current.deviceId);
-
     let options = {
         nickname, walletname, initials, userColor, sessionName,
-        mic, video,
-        cameraDeviceId, cameraDeviceLabel, cameraDeviceIndex,
-        micDeviceId, micDeviceLabel, micDeviceIndex,
         boardName: sessionName
     };
 
