@@ -3903,9 +3903,9 @@ class VideoChatView {
         }
 
         // until we changes the situation here
-        if (path.indexOf("files/v1/pitch") >= 0) {
-            return new URL(url, "https://croquet.io/dev/q/").toString();
-        }
+        // if (path.indexOf("files/v1/pitch") >= 0) {
+        //     return new URL(url, "https://croquet.io/dev/q/").toString();
+        // }
 
         if (url.startsWith(".")) {return new URL(url, path).toString();}
         throw new Error("unrecognized URL fragment");
